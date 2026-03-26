@@ -1,0 +1,39 @@
+# IMAI Test Script
+
+new Test session for IMAI
+
+task Build a bot for events in Chelyabinsk
+
+phase planning
+
+todo add Define architecture
+todo add Create services
+todo add Test deployment
+todo add Write README
+
+add user Привет! Мне нужен бот для событий в Челябинске
+add assistant Привет! Помогу с ботом. Расскажи подробнее какие события?
+
+add thinking Пользователь хочет бот для событий. Надо уточнить требования.
+
+add decision Использовать Telegram Bot API вместо Discord (пользователь из РФ)
+
+todo done 0
+
+phase implementation
+
+add user Нужно: поиск событий, категории, уведомления
+add assistant Понял. Сделаю:
+  1. Парсер событий с сайтов
+  2. Категоризация по типам
+  3. Push-уведомления по подписке
+
+pin message_1
+
+tag message_1 important question
+
+link message_1 message_2 answers
+
+stats
+
+save

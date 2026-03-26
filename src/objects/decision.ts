@@ -48,7 +48,7 @@ export class DecisionObject extends BaseObject {
     }
   }
 
-  linkTo(targetId: string, relationType: LinkType): void {
+  override linkTo(targetId: string, relationType: LinkType): void {
     super.linkTo(targetId, relationType);
   }
 
@@ -76,7 +76,7 @@ export class DecisionObject extends BaseObject {
     };
   }
 
-  static fromJSON(data: DecisionObjectData): DecisionObject {
+  static override fromJSON(data: DecisionObjectData): DecisionObject {
     const obj = new DecisionObject(data.decision, data.alternatives, data.id);
     obj.createdAt = data.createdAt;
     obj.updatedAt = data.updatedAt;

@@ -1,5 +1,5 @@
-import { ensureDirSync } from "https://deno.land/std@0.224.0/fs/mod.ts";
-import { Context, DashboardObject, ActionLogObject } from "./context.ts";
+import { ensureDirSync } from "@std/fs";
+import { Context, TaskContextObject, ActionLogObject } from "./context.ts";
 import type { Session, WakeRecord } from "./types.ts";
 
 const SESSIONS_DIR = `${Deno.env.get("HOME")}/.imai/sessions`;
@@ -24,7 +24,7 @@ export class SessionManager {
       id,
       createdAt: new Date().toISOString(),
       contextPath: `${sessionDir}/context.json`,
-      dashboardPath: `${sessionDir}/dashboard.json`,
+      taskContextPath: `${sessionDir}/taskContext.json`,
       actionLogPath: `${sessionDir}/action-log.json`,
       checkpointDir: `${sessionDir}/checkpoint`,
     };
@@ -32,11 +32,11 @@ export class SessionManager {
     this.session = session;
     this.context = new Context();
 
-    const dashboard = new DashboardObject();
+    const taskContext = new TaskContextObject();
     if (task) {
-      dashboard.setTask(task);
+      taskContext.setTask(task);
     }
-    this.context.append(dashboard);
+    this.context.append(taskContext);
 
     const actionLog = new ActionLogObject();
     this.context.append(actionLog);
@@ -57,7 +57,7 @@ export class SessionManager {
         id: sessionId,
         createdAt: "",
         contextPath: `${sessionDir}/context.json`,
-        dashboardPath: `${sessionDir}/dashboard.json`,
+        taskContextPath: `${sessionDir}/taskContext.json`,
         actionLogPath: `${sessionDir}/action-log.json`,
         checkpointDir: `${sessionDir}/checkpoint`,
       };
@@ -83,8 +83,8 @@ export class SessionManager {
     return this.session ?? undefined;
   }
 
-  getDashboard(): DashboardObject | undefined {
-    return this.context?.getDashboard();
+  getTaskContext(): TaskContextObject | undefined {
+    return this.context?.getTaskContext();
   }
 
   getActionLog(): ActionLogObject | undefined {
@@ -94,9 +94,9 @@ export class SessionManager {
   async recordWake(trigger: WakeRecord): Promise<void> {
     if (!this.session || !this.context) return;
 
-    const dashboard = this.getDashboard();
-    if (dashboard) {
-      dashboard.recordWake(trigger.trigger.type);
+    const taskContext = this.getTaskContext();
+    if (taskContext) {
+      taskContext.recordWake(trigger.trigger.type);
     }
 
     const actionLog = this.getActionLog();

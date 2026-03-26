@@ -45,7 +45,7 @@ export class ThinkingObject extends BaseObject {
     };
   }
 
-  static fromJSON(data: ThinkingObjectData): ThinkingObject {
+  static override fromJSON(data: ThinkingObjectData): ThinkingObject {
     const obj = new ThinkingObject(data.content, data.context ?? undefined, data.id);
     obj.createdAt = data.createdAt;
     obj.updatedAt = data.updatedAt;

@@ -44,7 +44,7 @@
 | Тип | Назначение | Методы |
 |-----|------------|--------|
 | `MessageObject` | Сообщение от/к пользователю | edit, tag, resolve, link_to, archive |
-| `DashboardObject` | Состояние задачи (всегда один) | read, update |
+| `TaskContextObject` | Состояние задачи (всегда один) | read, update |
 | `ActionLogObject` | История действий модели | append, read(last=N) |
 | `CheckpointObject` | Свёрнутый кусок контекста | expand, update |
 | `WaitObject` | Ожидание триггера | cancel, peek, modify_trigger |
@@ -52,13 +52,13 @@
 | `DecisionObject` | Принятое решение | supersede, revert |
 | `DataObject` | Структурированные данные | query, filter, transform |
 
-### 3. Dashboard — всегда виден
+### 3. TaskContext — всегда виден
 
-Dashboard инъектится первым в каждый запрос:
+TaskContext инъектится первым в каждый запрос:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ DASHBOARD                                        │
+│ TaskContext                                        │
 ├─────────────────────────────────────────────────┤
 │ Задача: [описание текущей задачи]               │
 │ Фаза: planning | implementation | testing       │
@@ -76,9 +76,9 @@ Dashboard инъектится первым в каждый запрос:
 └─────────────────────────────────────────────────┘
 ```
 
-### 3.1 Dashboard блоки
+### 3.1 TaskContext блоки
 
-Dashboard состоит из нескольких блоков, каждый отвечает за свою область:
+TaskContext состоит из нескольких блоков, каждый отвечает за свою область:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -87,7 +87,7 @@ Dashboard состоит из нескольких блоков, каждый о
 │ Ты — инвертированный агент. Ты управляешь контекстом как        │
 │ пространством объектов. Твой output — это код на TypeScript,    │
 │ который выполняется в sandbox. Доступные API: context,          │
-│ dashboard, respond, sleep, tool.                                 │
+│ taskctx, respond, sleep, tool.                                 │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -150,7 +150,7 @@ Dashboard состоит из нескольких блоков, каждый о
 │ ACTION LOG (последние N)                                         │
 ├─────────────────────────────────────────────────────────────────┤
 │ [21:43:15] wake(user_input)                                      │
-│ [21:43:15] read(dashboard)                                       │
+│ [21:43:15] read(taskctx)                                       │
 │ [21:43:16] query(unresolved)                                     │
 │ [21:43:18] respond("Архитектура...")                            │
 │ [21:43:20] checkpoint("Архитектура объяснена")                  │
@@ -187,7 +187,7 @@ Dashboard состоит из нескольких блоков, каждый о
 │ MessageObject:                                                   │
 │   .edit(content) .tag(...tags) .resolve() .linkTo(...)          │
 │                                                                  │
-│ DashboardObject:                                                 │
+│ TaskContextObject:                                                 │
 │   .update(fields) .setTask(text) .setPhase(phase)               │
 │                                                                  │
 │ WaitObject:                                                      │
@@ -216,13 +216,13 @@ Dashboard состоит из нескольких блоков, каждый о
 | TODO | ⚠️ Если есть | Когда есть незавершённые |
 | API Reference | ❓ Вопрос | Всегда vs по требованию? |
 
-## Открытые вопросы по Dashboard
+## Открытые вопросы по TaskContext
 
 **1. API Reference — всегда или по требованию?**
 - Всегда → больше токенов, но модель всегда видит
 - По требованию → экономия, но модель может забыть синтаксис
 
-**2. Сокращённый vs полный Dashboard**
+**2. Сокращённый vs полный TaskContext**
 - Если контекст большой — сокращать некоторые блоки?
 - Динамически скрывать пустые блоки?
 
@@ -270,10 +270,10 @@ context: {
   checkpoint(summary: string, range?: [number, number]): CheckpointObject
 }
 
-// Dashboard — состояние задачи
-dashboard: {
-  read(): DashboardData
-  update(fields: Partial<DashboardData>): void
+// TaskContext — состояние задачи
+taskctx: {
+  read(): TaskContextData
+  update(fields: Partial<TaskContextData>): void
   setTask(text: string): void
   setPhase(phase: Phase): void
   setStatus(status: Status): void
@@ -314,7 +314,7 @@ type LinkType =
 type Phase = "planning" | "implementation" | "testing" | "done"
 type Status = "idle" | "in_progress" | "blocked" | "waiting"
 
-interface DashboardData {
+interface TaskContextData {
   task: string
   phase: Phase
   status: Status
@@ -329,7 +329,7 @@ interface DashboardData {
 ## Следующие шаги
 
 1. Изучить бенчмарки: AgentBench, SWE-bench, τ-bench
-2. Протестировать Dashboard на реальных сценариях
+2. Протестировать TaskContext на реальных сценариях
 3. Определить минимальный набор blocks для MVP
 4. Реализовать базовый CLI для ручного тестирования
 
@@ -349,7 +349,7 @@ interface DashboardData {
 ```
 Триггер срабатывает → WakeRecord создаётся
 Система:
-1. Обновляет Dashboard (wake_reason, wake_time)
+1. Обновляет TaskContext (wake_reason, wake_time)
 2. Отдаёт управление модели
 ```
 
@@ -394,7 +394,7 @@ interface DashboardData {
    - Какой режим?
 
 2. READ STATE
-   - Dashboard (всегда)
+   - TaskContext (всегда)
    - ActionLog.last(N) (всегда)
    - WakeRecord (всегда)
    - Thinking.last(N) (если нужно)
@@ -444,7 +444,7 @@ interface DashboardData {
 
 ```
 [
-  DashboardObject,      // Всегда первый
+  TaskContextObject,      // Всегда первый
   WakeRecord,           // Почему проснулась
   ...context_objects,   // Остальной контекст
 ]
@@ -471,7 +471,7 @@ interface DashboardData {
 
 - [ ] Базовая структура объекта (BaseObject class)
 - [ ] MessageObject (user/assistant messages)
-- [ ] DashboardObject (singleton, always visible)
+- [ ] TaskContextObject (singleton, always visible)
 - [ ] ActionLogObject (history of model actions)
 - [ ] Context operations (append, query, get, link)
 - [ ] Sleep/wake с user_input триггером
@@ -485,14 +485,14 @@ interface DashboardData {
 - [ ] ThinkingObject (read/append/pin)
 - [ ] Links между объектами (answers, explains, etc.)
 - [ ] Токен-каунтинг (char count для начала)
-- [ ] Dashboard все блоки
+- [ ] TaskContext все блоки
 
 ### Phase 3: Intelligence
 
 - [ ] DecisionObject (supersede, revert)
 - [ ] DataObject (query, filter, transform)
 - [ ] Авто-оптимизация контекста
-- [ ] Dashboard auto-update
+- [ ] TaskContext auto-update
 - [ ] Recovery из checkpoint
 
 ### Phase 4: Integration
@@ -519,7 +519,7 @@ const response = new MessageObject({
 context.append(response);
 context[5].resolve();
 context[5].linkTo(response, "answers");
-dashboard.update({ lastActivity: Date.now() });
+taskctx.update({ lastActivity: Date.now() });
 sleep({ trigger: "user_input" });
 ```
 
@@ -539,7 +539,7 @@ sleep({ trigger: "user_input" });
 ├── sessions/
 │   └── session-abc123/
 │       ├── context.json      # Все объекты
-│       ├── dashboard.json    # Dashboard state
+│       ├── taskctx.json    # TaskContext state
 │       ├── action-log.json   # История действий
 │       └── checkpoint/       # Свёрнутые объекты
 │           ├── cp-001.json
@@ -564,7 +564,7 @@ sleep({ trigger: "user_input" });
 Если модель архивировала важное:
 - A) Автоматический search в archive при query
 - B) Явная команда `restore(checkpoint_id)`
-- C) "Подсказки" в dashboard о связанных архивах
+- C) "Подсказки" в taskctx о связанных архивах
 
 **Вопрос:** Как балансировать автоматизацию vs контроль?
 
@@ -659,7 +659,7 @@ imai/
 │   ├── objects/
 │   │   ├── base.ts        ✅ BaseObject класс
 │   │   ├── message.ts     ✅ MessageObject класс
-│   │   ├── dashboard.ts   ✅ DashboardObject класс
+│   │   ├── taskctx.ts   ✅ TaskContextObject класс
 │   │   ├── action_log.ts  ✅ ActionLogObject класс
 │   │   ├── checkpoint.ts  ✅ CheckpointObject класс
 │   │   ├── wait.ts        ✅ WaitObject класс
@@ -678,7 +678,7 @@ imai/
 Все объекты:
 - BaseObject (abstract) — базовый класс с tag/untag/pin/unpin/linkTo/unlink
 - MessageObject — сообщения с edit/append/resolve/archive
-- DashboardObject — состояние задачи с todos/decisions/wake
+- TaskContextObject — состояние задачи с todos/decisions/wake
 - ActionLogObject — лог действий с append/read/clear
 - CheckpointObject — свёрнутый контекст
 - WaitObject — ожидание триггера с cancel/peek/modifyTrigger
@@ -701,7 +701,7 @@ SessionManager:
 - recordWake(trigger) — записать пробуждение
 
 REPL:
-- new/load/list/dashboard/add/todo/stats/save/quit
+- new/load/list/taskctx/add/todo/stats/save/quit
 
 ### Phase 2 — Core (下一步)
 
@@ -735,7 +735,7 @@ src/
 |--------|----------|
 | Context | Пространство объектов |
 | Object | Элемент контекста с методами |
-| Dashboard | Специальный объект с состоянием задачи |
+| TaskContext | Специальный объект с состоянием задачи |
 | ActionLog | История действий модели |
 | Wake | Просыпание модели по триггеру |
 | Sleep | Усыпление модели с ожиданием триггера |

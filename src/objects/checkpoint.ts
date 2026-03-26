@@ -69,7 +69,7 @@ export class CheckpointObject extends BaseObject {
     };
   }
 
-  static fromJSON(data: CheckpointObjectData): CheckpointObject {
+  static override fromJSON(data: CheckpointObjectData): CheckpointObject {
     const obj = new CheckpointObject(data.summary, data.coversIds, data.canExpand, data.id);
     obj.createdAt = data.createdAt;
     obj.updatedAt = data.updatedAt;

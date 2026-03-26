@@ -41,7 +41,7 @@ export class MessageObject extends BaseObject {
     this.recordHistory("archived");
   }
 
-  linkTo(targetId: string, relationType: LinkType): void {
+  override linkTo(targetId: string, relationType: LinkType): void {
     super.linkTo(targetId, relationType);
   }
 
@@ -70,7 +70,7 @@ export class MessageObject extends BaseObject {
     };
   }
 
-  static fromJSON(data: MessageObjectData): MessageObject {
+  static override fromJSON(data: MessageObjectData): MessageObject {
     const obj = new MessageObject(data.role, data.content, data.id);
     obj.createdAt = data.createdAt;
     obj.updatedAt = data.updatedAt;

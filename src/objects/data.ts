@@ -84,7 +84,7 @@ export class DataObject extends BaseObject {
     };
   }
 
-  static fromJSON(data: DataObjectData): DataObject {
+  static override fromJSON(data: DataObjectData): DataObject {
     const obj = new DataObject(data.data, data.schema, data.id);
     obj.createdAt = data.createdAt;
     obj.updatedAt = data.updatedAt;

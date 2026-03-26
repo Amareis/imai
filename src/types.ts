@@ -2,7 +2,7 @@
 
 export type ObjectType =
   | "message"
-  | "dashboard"
+  | "task_context"
   | "action_log"
   | "checkpoint"
   | "wait"
@@ -71,9 +71,9 @@ export interface MessageObjectData extends BaseObjectData {
   status: "pending" | "processing" | "resolved";
 }
 
-// === Dashboard Object ===
+// === Task Context Object ===
 
-export interface DashboardData {
+export interface TaskContextData {
   task: string;
   phase: Phase;
   status: Status;
@@ -82,6 +82,7 @@ export interface DashboardData {
   lastActivity: string;
   todos: TodoItem[];
   decisions: DecisionRef[];
+  extra: Record<string, unknown>;
 }
 
 export interface TodoItem {
@@ -97,9 +98,9 @@ export interface DecisionRef {
   superseded: boolean;
 }
 
-export interface DashboardObjectData extends BaseObjectData {
-  type: "dashboard";
-  data: DashboardData;
+export interface TaskContextObjectData extends BaseObjectData {
+  type: "task_context";
+  data: TaskContextData;
 }
 
 // === Action Log Object ===
@@ -183,7 +184,7 @@ export interface Session {
   id: string;
   createdAt: string;
   contextPath: string;
-  dashboardPath: string;
+  taskContextPath: string;
   actionLogPath: string;
   checkpointDir: string;
 }

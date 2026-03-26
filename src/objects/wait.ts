@@ -84,7 +84,7 @@ export class WaitObject extends BaseObject {
     };
   }
 
-  static fromJSON(data: WaitObjectData): WaitObject {
+  static override fromJSON(data: WaitObjectData): WaitObject {
     const obj = new WaitObject(data.trigger, data.id);
     obj.createdAt = data.createdAt;
     obj.updatedAt = data.updatedAt;

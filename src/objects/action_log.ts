@@ -80,7 +80,7 @@ export class ActionLogObject extends BaseObject {
     };
   }
 
-  static fromJSON(data: ActionLogObjectData): ActionLogObject {
+  static override fromJSON(data: ActionLogObjectData): ActionLogObject {
     const obj = new ActionLogObject(data.id);
     obj.createdAt = data.createdAt;
     obj.updatedAt = data.updatedAt;
