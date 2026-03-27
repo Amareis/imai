@@ -1,12 +1,13 @@
 import {
-  model,
-  Model,
-  prop,
-  modelAction,
-  getSnapshot,
   fromSnapshot,
-  registerRootStore,
+  getSnapshot,
+  Model,
+  model,
+  modelAction,
+  type ModelClass,
   onPatches,
+  prop,
+  registerRootStore,
 } from "mobx-keystone";
 import { ensureDirSync } from "@std/fs";
 import type { BasePanel } from "./models/panel.ts";
@@ -19,8 +20,6 @@ export interface SessionData {
   id: string;
   createdAt: string;
   panels: unknown[];
-  mind: unknown;
-  chat: unknown;
 }
 
 @model("imai/Session")
@@ -28,45 +27,49 @@ export class Session extends Model({
   id: prop<string>(),
   createdAt: prop<string>(() => new Date().toISOString()),
   panels: prop<BasePanel[]>(() => []),
-  mind: prop<MindPanel>(),
-  chat: prop<ChatPanel>(),
 }) {
+  getPanel<T extends BasePanel>(
+    panelClass: ModelClass<T>,
+    slug: string,
+  ): T {
+    const p = this.tryGetPanel(panelClass, slug);
+    if (!p) throw new Error(`Cannot find panel with slug '${slug}'`);
+    return p;
+  }
+
+  tryGetPanel<T extends BasePanel>(
+    panelClass: ModelClass<T>,
+    slug: string,
+  ): T | undefined {
+    return this.panels.find(
+      (p) => p instanceof panelClass && p.slug === slug,
+    ) as T | undefined;
+  }
+
   @modelAction
   registerPanel(panel: BasePanel) {
-    if (!this.panels.find((p) => p.id === panel.id)) {
+    if (!this.panels.find((p) => p.slug === panel.slug)) {
       this.panels.push(panel);
     }
   }
 
   @modelAction
-  unregisterPanel(id: string) {
-    this.panels = this.panels.filter((p) => p.id !== id);
-  }
-
-  getPanel<T extends BasePanel>(id: string): T | undefined {
-    return this.panels.find((p) => p.id === id) as T | undefined;
+  unregisterPanel(slug: string) {
+    this.panels = this.panels.filter((p) => p.slug !== slug);
   }
 
   renderForModel(): string {
-    const parts: string[] = [];
-    parts.push(this.mind.renderForModel());
-    parts.push(this.chat.renderForModel());
-    for (const panel of this.panels) {
-      if (panel.id !== "mind" && panel.id !== "chat") {
-        parts.push(panel.renderForModel());
-      }
-    }
-    return parts.join("\n\n");
+    return this.panels.map((p) => p.renderForModel()).join("\n\n");
   }
 
   static create(id?: string): Session {
     const sessionId = id ?? `session_${Date.now()}`;
     const session = new Session({
       id: sessionId,
-      mind: new MindPanel({}),
-      chat: new ChatPanel({}),
     });
     registerRootStore(session);
+    session.registerPanel(new MindPanel({ slug: "main" }));
+    session.registerPanel(new ChatPanel({ slug: "default" }));
     return session;
   }
 
@@ -111,7 +114,7 @@ export class SessionManager {
     if (!this.session || !this.sessionPath) return;
     await Deno.writeTextFile(
       this.sessionPath,
-      JSON.stringify(this.session.toData(), null, 2)
+      JSON.stringify(this.session.toData(), null, 2),
     );
   }
 

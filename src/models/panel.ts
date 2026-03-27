@@ -13,6 +13,7 @@ export type PanelState = "minimized" | "preview" | "expanded";
 @model("imai/BasePanel")
 export class BasePanel extends Model({
   id: idProp,
+  slug: prop<string>(),
   state: prop<PanelState>("preview"),
 }) {
   @modelAction
@@ -34,7 +35,11 @@ export class BasePanel extends Model({
   }
 
   renderForModel(): string {
-    return `[${this.$modelType}]`;
+    const type = this.$modelType.replace("imai/", "");
+    if (this.state === "minimized") {
+      return `[${type}:${this.slug}]`;
+    }
+    return `=== ${type}:${this.slug} ===`;
   }
 
   getAPI(): Record<string, unknown> {

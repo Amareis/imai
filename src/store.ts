@@ -1,6 +1,8 @@
 import { makeAutoObservable } from "mobx";
 import OpenAI from "openai";
 import { type Session, SessionManager } from "./session.ts";
+import { MindPanel } from "./models/mind.ts";
+import { ChatPanel } from "./models/chat.ts";
 
 type DeltaWithReasoning =
   & OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta
@@ -18,6 +20,7 @@ export class Store {
   status: string = "Ready";
   isLoading: boolean = false;
   logs: string[] = [];
+  debugMode: boolean = false;
 
   private manager: SessionManager;
   private openai: OpenAI | null = null;
@@ -37,12 +40,12 @@ export class Store {
     }
   }
 
-  get mindContent(): string {
-    return this.session?.mind.content ?? "";
+  get mind() {
+    return this.session?.getPanel<MindPanel>(MindPanel, "main");
   }
 
-  get chatMessages() {
-    return this.session?.chat.messages ?? [];
+  get chat() {
+    return this.session?.getPanel<ChatPanel>(ChatPanel, "default");
   }
 
   get contextLines(): string[] {
@@ -131,10 +134,14 @@ export class Store {
     this.thinking = "";
   }
 
-  async sendMessage(text: string) {
-    if (!this.session || !text.trim()) return;
+  toggleDebug() {
+    this.debugMode = !this.debugMode;
+  }
 
-    this.session.chat.add("user", text.trim());
+  async sendMessage(text: string) {
+    if (!this.chat || !text.trim()) return;
+
+    this.chat.add("user", text.trim());
     this.addLog(`USER: ${text.trim().slice(0, 30)}...`);
     await this.manager.save();
     this.input = "";
@@ -148,8 +155,8 @@ export class Store {
     this.addLog(`> ${code.slice(0, 40)}...`);
 
     try {
-      const mind = this.session.mind;
-      const chat = this.session.chat;
+      const mind = this.mind;
+      const chat = this.chat;
 
       const fn = new Function(
         "mind",

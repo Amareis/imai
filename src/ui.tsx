@@ -8,7 +8,10 @@ import {
   ScrollView,
   Text,
   useApp,
+  useInput,
 } from "@semos-labs/glyph";
+
+const COLUMN_WIDTH = 50;
 
 export const App = observer(() => {
   const { exit, rows, columns } = useApp();
@@ -17,27 +20,73 @@ export const App = observer(() => {
     store.init();
   }, []);
 
-  const { thinkingLines, contextLines, outputLines, logLines } = store;
+  useInput((key: Key) => {
+    if (key.ctrl && key.name === "d") {
+      store.toggleDebug();
+    }
+  });
 
-  const hasThinking = thinkingLines.length > 0;
   const headerHeight = 1;
-  const thinkingHeight = hasThinking ? 6 : 2;
   const inputHeight = 3;
-  const availableHeight = rows - headerHeight - thinkingHeight - inputHeight;
+  const availableHeight = rows - headerHeight - inputHeight;
 
-  const contextHeight = Math.floor(availableHeight * 0.4);
-  const outputHeight = Math.floor(availableHeight * 0.4);
-  const logsHeight = availableHeight - contextHeight - outputHeight;
+  if (store.debugMode) {
+    return (
+      <Box style={{ height: rows, width: columns, flexDirection: "column" }}>
+        <Box style={{ flexDirection: "row", height: headerHeight }}>
+          <Text style={{ color: "cyan", bold: true }}>DEBUG MODE</Text>
+          <Text style={{ dim: true }}> | Ctrl+D to exit</Text>
+          {store.error && (
+            <Text style={{ color: "red" }}> | {store.error.slice(0, 30)}</Text>
+          )}
+        </Box>
+
+        <ScrollView style={{ height: availableHeight, flexGrow: 1 }}>
+          <Text style={{ color: "whiteBright" }}>
+            {store.contextLines.join("\n")}
+          </Text>
+        </ScrollView>
+
+        <Box
+          style={{
+            flexDirection: "row",
+            height: inputHeight,
+            border: "single",
+            borderColor: "yellow",
+          }}
+        >
+          <Text style={{ bold: true, color: "yellow" }}>{" > "}</Text>
+          <Input
+            style={{ flexGrow: 1 }}
+            value={store.input}
+            onChange={(v: string) => store.setInput(v)}
+            onKeyPress={(key: Key) => {
+              if (key.name !== "return") return;
+              handleInput(store.input, exit);
+            }}
+            placeholder="send <msg> | ai | clear | save | quit"
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  const panels = store.session?.panels ?? [];
+  const numColumns = Math.max(1, Math.floor(columns / COLUMN_WIDTH));
+  const rowsPerColumn = Math.ceil(panels.length / numColumns);
+  const panelHeight = Math.floor(availableHeight / Math.max(1, rowsPerColumn));
+
+  const columnsData: typeof panels[] = [];
+  for (let i = 0; i < numColumns; i++) {
+    columnsData.push([]);
+  }
+  panels.forEach((panel, i) => {
+    columnsData[i % numColumns].push(panel);
+  });
 
   return (
-    <Box
-      style={{
-        height: rows,
-        width: columns,
-      }}
-    >
-      {/* Header */}
-      <Box style={{ flexDirection: "row" }}>
+    <Box style={{ height: rows, width: columns, flexDirection: "column" }}>
+      <Box style={{ flexDirection: "row", height: headerHeight }}>
         <Text
           style={{
             color: store.error ? "red" : store.isLoading ? "yellow" : "green",
@@ -45,78 +94,49 @@ export const App = observer(() => {
         >
           {store.status}
         </Text>
+        <Text style={{ dim: true }}> | Ctrl+D for debug</Text>
         {store.error && (
-          <Text style={{ color: "red" }}>| {store.error.slice(0, 50)}</Text>
+          <Text style={{ color: "red" }}> | {store.error.slice(0, 30)}</Text>
         )}
       </Box>
 
-      {/* Context Panel */}
-      <Box
-        style={{
-          border: "single",
-          borderColor: "blue",
-          height: contextHeight,
-        }}
-      >
-        <Text style={{ bold: true, color: "blue" }}>CONTEXT</Text>
-        <ScrollView style={{ flexGrow: 1 }}>
-          {contextLines.map((l: string) => (
-            <Text style={{ dim: true }}>{l}</Text>
-          ))}
-        </ScrollView>
+      <Box style={{ flexDirection: "row", height: availableHeight }}>
+        {columnsData.map((colPanels, colIdx) => (
+          <Box
+            key={colIdx}
+            style={{
+              width: COLUMN_WIDTH,
+              flexDirection: "column",
+            }}
+          >
+            {colPanels.map((panel) => (
+              <Box
+                key={panel.slug}
+                style={{
+                  border: "single",
+                  borderColor: "blue",
+                  height: panelHeight,
+                  flexDirection: "column",
+                }}
+              >
+                <Text style={{ bold: true, color: "cyan" }}>
+                  {panel.$modelType.replace("imai/", "")}:{panel.slug}
+                </Text>
+                <ScrollView style={{ flexGrow: 1 }}>
+                  <Text style={{ dim: true }}>
+                    {panel.renderForModel()}
+                  </Text>
+                </ScrollView>
+              </Box>
+            ))}
+          </Box>
+        ))}
       </Box>
 
-      {/* Output Panel */}
-      <Box style={{ flexDirection: "row", height: outputHeight }}>
-        <Box
-          style={{
-            flexBasis: 1,
-            flexGrow: 1,
-            border: "single",
-            borderColor: "green",
-          }}
-        >
-          <Text style={{ bold: true, color: "green" }}>OUTPUT</Text>
-          <ScrollView style={{ flexGrow: 1 }}>
-            {outputLines.map((l: string, i) => <Text key={i}>{l}</Text>)}
-          </ScrollView>
-        </Box>
-
-        <Box
-          style={{
-            flexBasis: 1,
-            flexGrow: 1,
-            border: "single",
-            borderColor: "magenta",
-          }}
-        >
-          <Text style={{ bold: true, color: "magenta" }}>THINKING</Text>
-          <ScrollView style={{ flexGrow: 1 }}>
-            {thinkingLines.map((l: string, i) => <Text key={i}>{l}</Text>)}
-          </ScrollView>
-        </Box>
-      </Box>
-
-      {/* Logs Panel */}
-      <Box
-        style={{
-          border: "single",
-          borderColor: "whiteBright",
-          height: logsHeight,
-        }}
-      >
-        <Text style={{ bold: true, color: "whiteBright" }}>LOGS</Text>
-        <ScrollView style={{ flexGrow: 1 }}>
-          {logLines.map((l: string, i) => (
-            <Text key={i} style={{ dim: true }}>{l}</Text>
-          ))}
-        </ScrollView>
-      </Box>
-
-      {/* Input */}
       <Box
         style={{
           flexDirection: "row",
+          height: inputHeight,
           border: "single",
           borderColor: "yellow",
         }}
@@ -128,20 +148,7 @@ export const App = observer(() => {
           onChange={(v: string) => store.setInput(v)}
           onKeyPress={(key: Key) => {
             if (key.name !== "return") return;
-            const v = store.input;
-
-            if (v === "ai") {
-              store.callAI();
-            } else if (v.startsWith("send ")) {
-              store.sendMessage(v.slice(5));
-            } else if (v === "clear") {
-              store.clearOutput();
-            } else if (v === "save") {
-              store.save();
-            } else if (v === "quit" || v === "q") {
-              store.save();
-              exit();
-            } else store.executeCode(v);
+            handleInput(store.input, exit);
           }}
           placeholder="send <msg> | ai | clear | save | quit"
         />
@@ -149,3 +156,18 @@ export const App = observer(() => {
     </Box>
   );
 });
+
+function handleInput(v: string, exit: () => void) {
+  if (v === "ai") {
+    store.callAI();
+  } else if (v.startsWith("send ")) {
+    store.sendMessage(v.slice(5));
+  } else if (v === "clear") {
+    store.clearOutput();
+  } else if (v === "save") {
+    store.save();
+  } else if (v === "quit" || v === "q") {
+    store.save();
+    exit();
+  } else store.executeCode(v);
+}

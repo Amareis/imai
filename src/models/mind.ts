@@ -21,7 +21,12 @@ export class MindPanel extends ExtendedModel(BasePanel, {
   }
 
   override renderForModel(): string {
-    return `=== MIND ===\n${this.content.trim() || "(empty)"}`;
+    const type = this.$modelType.replace("imai/", "");
+    if (this.state === "minimized") {
+      return `[${type}:${this.slug}]`;
+    }
+    const body = this.content.trim() || "(empty)";
+    return `=== ${type}:${this.slug} ===\n${body}`;
   }
 
   override getAPI(): Record<string, unknown> {

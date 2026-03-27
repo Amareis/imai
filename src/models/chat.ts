@@ -50,12 +50,19 @@ export class ChatPanel extends ExtendedModel(BasePanel, {
   }
 
   override renderForModel(): string {
+    const type = this.$modelType.replace("imai/", "");
     const newFlag = this.hasNew ? " [NEW]" : "";
-    if (this.state === "minimized" || this.messages.length === 0) {
-      return `[CHAT: ${this.messages.length} messages${newFlag}]`;
+    
+    if (this.state === "minimized") {
+      return `[${type}:${this.slug} - ${this.messages.length} msgs${newFlag}]`;
     }
+    
+    if (this.messages.length === 0) {
+      return `=== ${type}:${this.slug} ===${newFlag}\n(no messages)`;
+    }
+    
     const lines = this.messages.map((m) => m.render());
-    return `=== CHAT ===${newFlag}\n${lines.join("\n")}`;
+    return `=== ${type}:${this.slug} ===${newFlag}\n${lines.join("\n")}`;
   }
 
   override getAPI(): Record<string, unknown> {
