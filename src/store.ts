@@ -1,7 +1,20 @@
 import { makeAutoObservable } from "mobx";
 import OpenAI from "openai";
 import { SessionManager } from "./session.ts";
-import { MessageObject, DecisionObject, ThinkingObject, DataObject, WaitObject, Context } from "./context.ts";
+import {
+  type Context,
+  DataObject,
+  DecisionObject,
+  MessageObject,
+  ThinkingObject,
+  WaitObject,
+} from "./context.ts";
+
+type DeltaWithReasoning =
+  & OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta
+  & {
+    reasoning_content?: string;
+  };
 
 export class Store {
   ctx: Context | undefined;
@@ -13,29 +26,44 @@ export class Store {
   status: string = "Ready";
   isLoading: boolean = false;
   logs: string[] = [];
-  
+
   private manager: SessionManager;
   private openai: OpenAI | null = null;
 
   constructor() {
     makeAutoObservable(this);
     this.manager = new SessionManager();
-    
+
     const apiKey = Deno.env.get("IMAI_API_TOKEN");
     const baseURL = Deno.env.get("IMAI_API_URL");
-    
+
     if (apiKey && baseURL) {
-      this.openai = new OpenAI({ apiKey, baseURL: baseURL.replace(/\/chat\/completions$/, "") });
+      this.openai = new OpenAI({
+        apiKey,
+        baseURL: baseURL.replace(/\/chat\/completions$/, ""),
+      });
     }
+  }
+
+  get contextLines(): string[] {
+    if (!this.ctx) return ["No context"];
+    return this.ctx.renderForModel().split("\n");
+  }
+
+  get thinkingLines() {
+    return this.thinking.split("\n").filter((l) => l.trim());
+  }
+  get outputLines() {
+    return this.output.split("\n").filter((l) => l.trim());
   }
 
   async init() {
     this.setStatus("Loading...");
-    
+
     try {
       this.apiRef = await this.loadApiReference();
       this.addLog("API loaded");
-      
+
       const sessions = await this.manager.list();
       if (sessions.length > 0) {
         await this.manager.load(sessions[0]);
@@ -46,7 +74,7 @@ export class Store {
         this.ctx = this.manager.getContext();
         this.addLog("New session");
       }
-      
+
       this.setStatus("Ready");
     } catch (err) {
       this.setError((err as Error).message);
@@ -102,7 +130,7 @@ export class Store {
 
   async sendMessage(text: string) {
     if (!this.ctx || !text.trim()) return;
-    
+
     const msg = new MessageObject("user", text.trim());
     this.ctx.append(msg);
     this.addLog(`USER: ${text.trim().slice(0, 30)}...`);
@@ -110,18 +138,13 @@ export class Store {
     this.input = "";
   }
 
-  getContextLines(): string[] {
-    if (!this.ctx) return ["No context"];
-    return this.ctx.renderForModel().split("\n");
-  }
-
   async executeCode(code: string) {
     if (!code.trim()) return;
-    
+
     this.clearError();
     this.setStatus("Running...");
     this.addLog(`> ${code.slice(0, 40)}...`);
-    
+
     try {
       const fn = new Function(
         "ctx",
@@ -133,9 +156,9 @@ export class Store {
         "respond",
         "sleep",
         "log",
-        code
+        code,
       );
-      
+
       fn(
         this.ctx,
         MessageObject,
@@ -152,9 +175,9 @@ export class Store {
         },
         (action: string, details?: Record<string, unknown>) => {
           this.ctx?.getActionLog()?.append(action, undefined, details);
-        }
+        },
       );
-      
+
       await this.manager.save();
       this.addLog("OK");
       this.setStatus("Ready");
@@ -182,7 +205,7 @@ export class Store {
     this.addLog("Calling AI...");
 
     const contextState = this.ctx.renderForModel();
-    
+
     const globalsState = `GLOBALS:
 - ctx.getTaskContext(): ${this.ctx?.getTaskContext() ? "exists" : "null"}
 - Objects: ${this.ctx?.stats().objectCount || 0}`;
@@ -200,7 +223,9 @@ RULES:
 3. Use respond() to output text
 4. Available: ctx, MessageObject, DecisionObject, ThinkingObject, DataObject, WaitObject, respond, sleep, log`;
 
-    const userPrompt = `CONTEXT:\n${contextState.slice(0, 5000)}\n\nWhat next? Return code.`;
+    const userPrompt = `CONTEXT:\n${
+      contextState.slice(0, 5000)
+    }\n\nWhat next? Return code.`;
 
     try {
       const stream = await this.openai.chat.completions.create({
@@ -210,30 +235,30 @@ RULES:
           { role: "user", content: userPrompt },
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 10000,
         stream: true,
+      }, {
+        body: {
+          "thinking": {
+            "type": "enabled",
+            "clear_thinking": false, // False for Preserved Thinking
+          },
+        },
       });
 
       let code = "";
       let thinking = "";
-      let inThinking = false;
 
       for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || "";
-        
-        if (content.includes("<think")) {
-          inThinking = true;
-          continue;
-        }
-        if (content.includes("</think")) {
-          inThinking = false;
-          continue;
-        }
-        
-        if (inThinking) {
-          thinking += content;
+        const choice = chunk.choices[0];
+        if (!choice) continue;
+        const delta = choice.delta as DeltaWithReasoning;
+
+        if (delta.reasoning_content) {
+          thinking += delta.reasoning_content;
           this.setThinking(thinking);
         } else {
+          const content = delta?.content || "";
           code += content;
           this.appendOutput(content);
         }
@@ -241,7 +266,7 @@ RULES:
 
       this.addLog("Stream done");
       this.setStatus("Ready");
-      
+
       // Auto-extract and execute code
       const cleanCode = this.extractCode(code);
       if (cleanCode) {
@@ -258,7 +283,9 @@ RULES:
 
   extractCode(text: string): string {
     if (text.includes("```")) {
-      const match = text.match(/```(?:typescript|ts|js|javascript)?\n?([\s\S]*?)```/);
+      const match = text.match(
+        /```(?:typescript|ts|js|javascript)?\n?([\s\S]*?)```/,
+      );
       if (match) {
         return match[1].trim();
       }

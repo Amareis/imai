@@ -1,7 +1,6 @@
-import React from "react";
 import { App } from "./ui.tsx";
 import { configure } from "mobx";
-import { withFullScreen } from "fullscreen-ink";
+import { render } from "@semos-labs/glyph";
 
 if (!Deno.stdin.isTerminal()) {
   console.error("Error: Interactive mode requires a terminal.");
@@ -10,4 +9,4 @@ if (!Deno.stdin.isTerminal()) {
 
 configure({ enforceActions: "never" });
 
-withFullScreen(<App />).start();
+render(<App />);

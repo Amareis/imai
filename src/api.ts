@@ -119,7 +119,11 @@ interface DecisionRef {
 // === ActionLog ===
 
 interface ActionLog {
-  append(action: string, target?: string, details?: Record<string, unknown>): void;
+  append(
+    action: string,
+    target?: string,
+    details?: Record<string, unknown>,
+  ): void;
   read(last?: number): ActionLogEntry[];
   clear(): void;
 }
@@ -263,18 +267,23 @@ ctx.append(assistantMsg);
 assistantMsg.linkTo(userMsg.id, "answers");
 
 // Make decisions
-const decision = new DecisionObject("Use Telegram Bot API", ["Discord", "Slack"]);
+const decision = new DecisionObject("Use Telegram Bot API", [
+  "Discord",
+  "Slack",
+]);
 ctx.append(decision);
 ctx.getTaskContext()?.addDecision("Use Telegram Bot API", decision.id);
 
 // Add thinking
-const think = new ThinkingObject("User wants events bot. Need to clarify requirements.");
+const think = new ThinkingObject(
+  "User wants events bot. Need to clarify requirements.",
+);
 ctx.append(think);
 think.pin();
 
 // Query objects
-const allMessages = ctx.query(obj => obj.type === "message");
-const pendingMessages = ctx.query((obj): obj is MessageObject => 
+const _allMessages = ctx.query((obj) => obj.type === "message");
+const _pendingMessages = ctx.query((obj): obj is MessageObject =>
   obj.type === "message" && (obj as MessageObject).status === "pending"
 );
 
