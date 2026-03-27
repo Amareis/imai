@@ -10,21 +10,6 @@ import {
   useApp,
 } from "@semos-labs/glyph";
 
-const ScrollableText = (
-  { lines, dim = false }: {
-    lines: string[];
-    dim?: boolean;
-  },
-) => {
-  return (
-    <ScrollView>
-      {lines.map((line: string) => (
-        dim ? <Text style={{ dim: true }}>{line}</Text> : <Text>{line}</Text>
-      ))}
-    </ScrollView>
-  );
-};
-
 export const App = observer(() => {
   const { exit, rows, columns } = useApp();
 
@@ -32,7 +17,17 @@ export const App = observer(() => {
     store.init();
   }, []);
 
-  const { thinkingLines, contextLines, outputLines } = store;
+  const { thinkingLines, contextLines, outputLines, logLines } = store;
+
+  const hasThinking = thinkingLines.length > 0;
+  const headerHeight = 1;
+  const thinkingHeight = hasThinking ? 6 : 2;
+  const inputHeight = 3;
+  const availableHeight = rows - headerHeight - thinkingHeight - inputHeight;
+
+  const contextHeight = Math.floor(availableHeight * 0.4);
+  const outputHeight = Math.floor(availableHeight * 0.4);
+  const logsHeight = availableHeight - contextHeight - outputHeight;
 
   return (
     <Box
@@ -55,58 +50,67 @@ export const App = observer(() => {
         )}
       </Box>
 
-      {/* Thinking */}
-      {thinkingLines.length > 0 && (
-        <Box
-          style={{
-            border: "single",
-            borderColor: "magenta",
-            paddingX: 1,
-            flexBasis: 10,
-            flexGrow: 1,
-          }}
-        >
-          <Text style={{ bold: true, color: "magenta" }}>THINKING</Text>
-          {thinkingLines.slice(-3).map((l: string) => (
-            <Text>{l.slice(0, 80)}</Text>
-          ))}
-        </Box>
-      )}
-
       {/* Context Panel */}
       <Box
         style={{
           border: "single",
           borderColor: "blue",
-          flexBasis: 10,
-          flexGrow: 1,
+          height: contextHeight,
         }}
       >
-        <Text style={{ bold: true, color: "blue" }}>
-          CONTEXT
-        </Text>
-        <ScrollableText
-          lines={contextLines}
-          dim
-        />
+        <Text style={{ bold: true, color: "blue" }}>CONTEXT</Text>
+        <ScrollView style={{ flexGrow: 1 }}>
+          {contextLines.map((l: string) => (
+            <Text style={{ dim: true }}>{l}</Text>
+          ))}
+        </ScrollView>
       </Box>
 
       {/* Output Panel */}
+      <Box style={{ flexDirection: "row", height: outputHeight }}>
+        <Box
+          style={{
+            flexBasis: 1,
+            flexGrow: 1,
+            border: "single",
+            borderColor: "green",
+          }}
+        >
+          <Text style={{ bold: true, color: "green" }}>OUTPUT</Text>
+          <ScrollView style={{ flexGrow: 1 }}>
+            {outputLines.map((l: string, i) => <Text key={i}>{l}</Text>)}
+          </ScrollView>
+        </Box>
+
+        <Box
+          style={{
+            flexBasis: 1,
+            flexGrow: 1,
+            border: "single",
+            borderColor: "magenta",
+          }}
+        >
+          <Text style={{ bold: true, color: "magenta" }}>THINKING</Text>
+          <ScrollView style={{ flexGrow: 1 }}>
+            {thinkingLines.map((l: string, i) => <Text key={i}>{l}</Text>)}
+          </ScrollView>
+        </Box>
+      </Box>
+
+      {/* Logs Panel */}
       <Box
         style={{
-          flexDirection: "column",
           border: "single",
-          borderColor: "green",
-          flexBasis: 10,
-          flexGrow: 1,
+          borderColor: "whiteBright",
+          height: logsHeight,
         }}
       >
-        <Text style={{ bold: true, color: "green" }}>
-          OUTPUT [Ctrl+O]
-        </Text>
-        <ScrollableText
-          lines={outputLines}
-        />
+        <Text style={{ bold: true, color: "whiteBright" }}>LOGS</Text>
+        <ScrollView style={{ flexGrow: 1 }}>
+          {logLines.map((l: string, i) => (
+            <Text key={i} style={{ dim: true }}>{l}</Text>
+          ))}
+        </ScrollView>
       </Box>
 
       {/* Input */}
@@ -141,12 +145,6 @@ export const App = observer(() => {
           }}
           placeholder="send <msg> | ai | clear | save | quit"
         />
-        )
-      </Box>
-
-      {/* Last log */}
-      <Box>
-        <Text style={{ dim: true }}>{store.logs.slice(-1)[0] || ""}</Text>
       </Box>
     </Box>
   );

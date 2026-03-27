@@ -40,7 +40,7 @@ export class Store {
     if (apiKey && baseURL) {
       this.openai = new OpenAI({
         apiKey,
-        baseURL: baseURL.replace(/\/chat\/completions$/, ""),
+        baseURL,
       });
     }
   }
@@ -55,6 +55,10 @@ export class Store {
   }
   get outputLines() {
     return this.output.split("\n").filter((l) => l.trim());
+  }
+
+  get logLines() {
+    return this.logs;
   }
 
   async init() {
@@ -237,13 +241,6 @@ RULES:
         temperature: 0.7,
         max_tokens: 10000,
         stream: true,
-      }, {
-        body: {
-          "thinking": {
-            "type": "enabled",
-            "clear_thinking": false, // False for Preserved Thinking
-          },
-        },
       });
 
       let code = "";
