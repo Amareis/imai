@@ -5,13 +5,21 @@
     ".": "./src/mod.ts"
   },
   "tasks": {
-    "dev": "deno run --allow-all src/main.ts",
-    "test": "deno test --allow-all src/",
-    "repl": "deno run --allow-all src/repl.ts"
+    "dev": "deno run --allow-all src/main.tsx",
+    "test": "deno test --allow-all src/"
   },
   "imports": {
     "@std/fs": "jsr:@std/fs@^1.0.0",
     "@std/path": "jsr:@std/path@^1.0.0",
-    "@std/uuid": "jsr:@std/uuid@^1.0.0"
+    "@std/uuid": "jsr:@std/uuid@^1.0.0",
+    "fullscreen-ink": "npm:fullscreen-ink@^0.1.0",
+    "openai": "npm:openai@^6.33.0",
+    "react": "npm:react@^19.0.0",
+    "ink": "npm:ink@^6.8.0",
+    "ink-box": "npm:ink-box@^2.0.0",
+    "ink-text-input": "npm:ink-text-input@^6.0.0",
+    "mobx": "npm:mobx@^6.15.0",
+    "mobx-react-lite": "npm:mobx-react-lite@^4.1.1",
+    "react-dom": "npm:react-dom@^19.2.4"
   }
 }
