@@ -1,14 +1,6 @@
 import { makeAutoObservable } from "mobx";
 import OpenAI from "openai";
-import { SessionManager } from "./session.ts";
-import {
-  type Context,
-  DataObject,
-  DecisionObject,
-  MessageObject,
-  ThinkingObject,
-  WaitObject,
-} from "./context.ts";
+import { type Session, SessionManager } from "./session.ts";
 
 type DeltaWithReasoning =
   & OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta
@@ -17,7 +9,7 @@ type DeltaWithReasoning =
   };
 
 export class Store {
-  ctx: Context | undefined;
+  session: Session | undefined;
   apiRef: string = "";
   input: string = "";
   output: string = "";
@@ -45,14 +37,23 @@ export class Store {
     }
   }
 
+  get mindContent(): string {
+    return this.session?.mind.content ?? "";
+  }
+
+  get chatMessages() {
+    return this.session?.chat.messages ?? [];
+  }
+
   get contextLines(): string[] {
-    if (!this.ctx) return ["No context"];
-    return this.ctx.renderForModel().split("\n");
+    if (!this.session) return ["No session"];
+    return this.session.renderForModel().split("\n");
   }
 
   get thinkingLines() {
     return this.thinking.split("\n").filter((l) => l.trim());
   }
+
   get outputLines() {
     return this.output.split("\n").filter((l) => l.trim());
   }
@@ -70,12 +71,10 @@ export class Store {
 
       const sessions = await this.manager.list();
       if (sessions.length > 0) {
-        await this.manager.load(sessions[0]);
-        this.ctx = this.manager.getContext();
+        this.session = await this.manager.load(sessions[0]) ?? undefined;
         this.addLog(`Session: ${sessions[0].slice(-8)}`);
       } else {
-        await this.manager.create();
-        this.ctx = this.manager.getContext();
+        this.session = await this.manager.create();
         this.addLog("New session");
       }
 
@@ -133,52 +132,44 @@ export class Store {
   }
 
   async sendMessage(text: string) {
-    if (!this.ctx || !text.trim()) return;
+    if (!this.session || !text.trim()) return;
 
-    const msg = new MessageObject("user", text.trim());
-    this.ctx.append(msg);
+    this.session.chat.add("user", text.trim());
     this.addLog(`USER: ${text.trim().slice(0, 30)}...`);
     await this.manager.save();
     this.input = "";
   }
 
   async executeCode(code: string) {
-    if (!code.trim()) return;
+    if (!code.trim() || !this.session) return;
 
     this.clearError();
     this.setStatus("Running...");
     this.addLog(`> ${code.slice(0, 40)}...`);
 
     try {
+      const mind = this.session.mind;
+      const chat = this.session.chat;
+
       const fn = new Function(
-        "ctx",
-        "MessageObject",
-        "DecisionObject",
-        "ThinkingObject",
-        "DataObject",
-        "WaitObject",
+        "mind",
+        "chat",
         "respond",
-        "sleep",
         "log",
         code,
       );
 
       fn(
-        this.ctx,
-        MessageObject,
-        DecisionObject,
-        ThinkingObject,
-        DataObject,
-        WaitObject,
+        mind,
+        chat,
         (text: string) => {
           this.appendOutput(`\n[RESPONSE] ${text}\n`);
           this.addLog(`RESP: ${text.slice(0, 30)}...`);
         },
-        (trigger: unknown) => {
-          this.appendOutput(`\n[SLEEP] ${JSON.stringify(trigger)}\n`);
-        },
         (action: string, details?: Record<string, unknown>) => {
-          this.ctx?.getActionLog()?.append(action, undefined, details);
+          this.addLog(
+            `LOG: ${action} ${details ? JSON.stringify(details) : ""}`,
+          );
         },
       );
 
@@ -198,8 +189,8 @@ export class Store {
       return;
     }
 
-    if (!this.ctx) {
-      this.setError("No context");
+    if (!this.session) {
+      this.setError("No session");
       return;
     }
 
@@ -208,24 +199,19 @@ export class Store {
     this.clearOutput();
     this.addLog("Calling AI...");
 
-    const contextState = this.ctx.renderForModel();
-
-    const globalsState = `GLOBALS:
-- ctx.getTaskContext(): ${this.ctx?.getTaskContext() ? "exists" : "null"}
-- Objects: ${this.ctx?.stats().objectCount || 0}`;
+    const contextState = this.session.renderForModel();
 
     const systemPrompt = `You are an AI agent. Return ONLY TypeScript code.
 
 API:
 ${this.apiRef.slice(0, 3000)}
 
-${globalsState}
-
 RULES:
 1. Return ONLY TypeScript code - no markdown, no comments
-2. Use optional chaining: ctx.getTaskContext()?.method()
-3. Use respond() to output text
-4. Available: ctx, MessageObject, DecisionObject, ThinkingObject, DataObject, WaitObject, respond, sleep, log`;
+2. Use mind.setContent(text), mind.append(text)
+3. Use chat.add(from, content), chat.markRead()
+4. Use respond() to output text
+5. Available: mind, chat, respond, log`;
 
     const userPrompt = `CONTEXT:\n${
       contextState.slice(0, 5000)
@@ -264,7 +250,6 @@ RULES:
       this.addLog("Stream done");
       this.setStatus("Ready");
 
-      // Auto-extract and execute code
       const cleanCode = this.extractCode(code);
       if (cleanCode) {
         this.appendOutput("\n\n--- Executing ---\n");

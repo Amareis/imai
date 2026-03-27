@@ -1,67 +1,106 @@
+import {
+  model,
+  Model,
+  prop,
+  modelAction,
+  getSnapshot,
+  fromSnapshot,
+  registerRootStore,
+  onPatches,
+} from "mobx-keystone";
 import { ensureDirSync } from "@std/fs";
-import { Context, TaskContextObject, ActionLogObject } from "./context.ts";
-import type { Session, WakeRecord } from "./types.ts";
+import type { BasePanel } from "./models/panel.ts";
+import { MindPanel } from "./models/mind.ts";
+import { ChatPanel } from "./models/chat.ts";
 
 const SESSIONS_DIR = `${Deno.env.get("HOME")}/.imai/sessions`;
 
-export class SessionManager {
-  private session: Session | null;
-  private context: Context | null;
+export interface SessionData {
+  id: string;
+  createdAt: string;
+  panels: unknown[];
+  mind: unknown;
+  chat: unknown;
+}
 
-  constructor() {
-    this.session = null;
-    this.context = null;
+@model("imai/Session")
+export class Session extends Model({
+  id: prop<string>(),
+  createdAt: prop<string>(() => new Date().toISOString()),
+  panels: prop<BasePanel[]>(() => []),
+  mind: prop<MindPanel>(),
+  chat: prop<ChatPanel>(),
+}) {
+  @modelAction
+  registerPanel(panel: BasePanel) {
+    if (!this.panels.find((p) => p.id === panel.id)) {
+      this.panels.push(panel);
+    }
   }
 
-  async create(task?: string): Promise<Session> {
-    const id = `session_${Date.now()}`;
-    const sessionDir = `${SESSIONS_DIR}/${id}`;
-    
-    ensureDirSync(sessionDir);
-    ensureDirSync(`${sessionDir}/checkpoint`);
+  @modelAction
+  unregisterPanel(id: string) {
+    this.panels = this.panels.filter((p) => p.id !== id);
+  }
 
-    const session: Session = {
-      id,
-      createdAt: new Date().toISOString(),
-      contextPath: `${sessionDir}/context.json`,
-      taskContextPath: `${sessionDir}/taskContext.json`,
-      actionLogPath: `${sessionDir}/action-log.json`,
-      checkpointDir: `${sessionDir}/checkpoint`,
-    };
+  getPanel<T extends BasePanel>(id: string): T | undefined {
+    return this.panels.find((p) => p.id === id) as T | undefined;
+  }
 
-    this.session = session;
-    this.context = new Context();
-
-    const taskContext = new TaskContextObject();
-    if (task) {
-      taskContext.setTask(task);
+  renderForModel(): string {
+    const parts: string[] = [];
+    parts.push(this.mind.renderForModel());
+    parts.push(this.chat.renderForModel());
+    for (const panel of this.panels) {
+      if (panel.id !== "mind" && panel.id !== "chat") {
+        parts.push(panel.renderForModel());
+      }
     }
-    this.context.append(taskContext);
+    return parts.join("\n\n");
+  }
 
-    const actionLog = new ActionLogObject();
-    this.context.append(actionLog);
-
-    await this.save();
-
+  static create(id?: string): Session {
+    const sessionId = id ?? `session_${Date.now()}`;
+    const session = new Session({
+      id: sessionId,
+      mind: new MindPanel({}),
+      chat: new ChatPanel({}),
+    });
+    registerRootStore(session);
     return session;
   }
 
-  async load(sessionId: string): Promise<Session | null> {
-    const sessionDir = `${SESSIONS_DIR}/${sessionId}`;
-    
-    try {
-      const contextData = JSON.parse(await Deno.readTextFile(`${sessionDir}/context.json`));
-      this.context = Context.fromJSON(contextData);
-      
-      this.session = {
-        id: sessionId,
-        createdAt: "",
-        contextPath: `${sessionDir}/context.json`,
-        taskContextPath: `${sessionDir}/taskContext.json`,
-        actionLogPath: `${sessionDir}/action-log.json`,
-        checkpointDir: `${sessionDir}/checkpoint`,
-      };
+  static load(data: SessionData): Session {
+    // deno-lint-ignore no-explicit-any
+    const session = fromSnapshot<Session>(data as any);
+    registerRootStore(session);
+    return session;
+  }
 
+  toData(): SessionData {
+    return getSnapshot(this) as SessionData;
+  }
+}
+
+export class SessionManager {
+  private session: Session | null = null;
+  private sessionPath: string | null = null;
+
+  async create(): Promise<Session> {
+    const id = `session_${Date.now()}`;
+    this.session = Session.create(id);
+    this.sessionPath = `${SESSIONS_DIR}/${id}/session.json`;
+    ensureDirSync(`${SESSIONS_DIR}/${id}`);
+    await this.save();
+    return this.session;
+  }
+
+  async load(sessionId: string): Promise<Session | null> {
+    const path = `${SESSIONS_DIR}/${sessionId}/session.json`;
+    try {
+      const data = JSON.parse(await Deno.readTextFile(path));
+      this.session = Session.load(data);
+      this.sessionPath = path;
       return this.session;
     } catch {
       return null;
@@ -69,47 +108,20 @@ export class SessionManager {
   }
 
   async save(): Promise<void> {
-    if (!this.session || !this.context) return;
-
-    const contextData = JSON.stringify(this.context.toJSON(), null, 2);
-    await Deno.writeTextFile(this.session.contextPath, contextData);
-  }
-
-  getContext(): Context | undefined {
-    return this.context ?? undefined;
+    if (!this.session || !this.sessionPath) return;
+    await Deno.writeTextFile(
+      this.sessionPath,
+      JSON.stringify(this.session.toData(), null, 2)
+    );
   }
 
   getSession(): Session | undefined {
     return this.session ?? undefined;
   }
 
-  getTaskContext(): TaskContextObject | undefined {
-    return this.context?.getTaskContext();
-  }
-
-  getActionLog(): ActionLogObject | undefined {
-    return this.context?.getActionLog();
-  }
-
-  async recordWake(trigger: WakeRecord): Promise<void> {
-    if (!this.session || !this.context) return;
-
-    const taskContext = this.getTaskContext();
-    if (taskContext) {
-      taskContext.recordWake(trigger.trigger.type);
-    }
-
-    const actionLog = this.getActionLog();
-    if (actionLog) {
-      actionLog.append("wake", undefined, { trigger });
-    }
-
-    await this.save();
-  }
-
   async list(): Promise<string[]> {
     try {
-      const entries = [];
+      const entries: string[] = [];
       for await (const entry of Deno.readDir(SESSIONS_DIR)) {
         if (entry.isDirectory && entry.name.startsWith("session_")) {
           entries.push(entry.name);
@@ -121,17 +133,8 @@ export class SessionManager {
     }
   }
 
-  async delete(sessionId: string): Promise<boolean> {
-    const sessionDir = `${SESSIONS_DIR}/${sessionId}`;
-    try {
-      await Deno.remove(sessionDir, { recursive: true });
-      if (this.session?.id === sessionId) {
-        this.session = null;
-        this.context = null;
-      }
-      return true;
-    } catch {
-      return false;
-    }
+  watch(callback: (patches: unknown) => void): () => void {
+    if (!this.session) return () => {};
+    return onPatches(this.session, callback);
   }
 }

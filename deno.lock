@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@std/assert@^1.0.19": "1.0.19",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
     "jsr:@std/crypto@^1.0.5": "1.0.5",
     "jsr:@std/dotenv@~0.225.6": "0.225.6",
@@ -11,6 +12,8 @@
     "jsr:@std/uuid@1": "1.1.0",
     "npm:@semos-labs/glyph@~0.2.10": "0.2.10_react@19.2.4",
     "npm:@types/react@*": "19.2.14",
+    "npm:mobx-keystone@1.20.0": "1.20.0_mobx@6.15.0",
+    "npm:mobx-keystone@^1.20.0": "1.20.0_mobx@6.15.0",
     "npm:mobx-react-lite@^4.1.1": "4.1.1_mobx@6.15.0_react@19.2.4",
     "npm:mobx@6.15.0": "6.15.0",
     "npm:mobx@^6.15.0": "6.15.0",
@@ -19,6 +22,12 @@
     "npm:react@19": "19.2.4"
   },
   "jsr": {
+    "@std/assert@1.0.19": {
+      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
     "@std/bytes@1.0.6": {
       "integrity": "f6ac6adbd8ccd99314045f5703e23af0a68d7f7e58364b47d2c7f408aeb5820a"
     },
@@ -77,8 +86,21 @@
     "emoji-regex@10.6.0": {
       "integrity": "sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A=="
     },
+    "fast-deep-equal@3.1.3": {
+      "integrity": "sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q=="
+    },
     "get-east-asian-width@1.5.0": {
       "integrity": "sha512-CQ+bEO+Tva/qlmw24dCejulK5pMzVnUOFOijVogd3KQs07HnRIgp8TGipvCCRT06xeYEbpbgwaCxglFyiuIcmA=="
+    },
+    "mobx-keystone@1.20.0_mobx@6.15.0": {
+      "integrity": "sha512-nS/saMrkqTNBPB7j3KkDCYv7q98n6+jPVnKQKKINBBXQUUvBsl/j+kGIpuVdOiJ5cl4kFmOb9U8ydzdqaPdh5A==",
+      "dependencies": [
+        "fast-deep-equal",
+        "mobx",
+        "nanoid",
+        "ts-toolbelt",
+        "tslib"
+      ]
     },
     "mobx-react-lite@4.1.1_mobx@6.15.0_react@19.2.4": {
       "integrity": "sha512-iUxiMpsvNraCKXU+yPotsOncNNmyeS2B5DKL+TL6Tar/xm+wwNJAubJmtRSeAoYawdZqwv8Z/+5nPRHeQxTiXg==",
@@ -90,6 +112,10 @@
     },
     "mobx@6.15.0": {
       "integrity": "sha512-UczzB+0nnwGotYSgllfARAqWCJ5e/skuV2K/l+Zyck/H6pJIhLXuBnz+6vn2i211o7DtbE78HQtsYEKICHGI+g=="
+    },
+    "nanoid@3.3.11": {
+      "integrity": "sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==",
+      "bin": true
     },
     "openai@6.33.0": {
       "integrity": "sha512-xAYN1W3YsDXJWA5F277135YfkEk6H7D3D6vWwRhJ3OEkzRgcyK8z/P5P9Gyi/wB4N8kK9kM5ZjprfvyHagKmpw==",
@@ -131,6 +157,12 @@
       "dependencies": [
         "ansi-regex"
       ]
+    },
+    "ts-toolbelt@9.6.0": {
+      "integrity": "sha512-nsZd8ZeNUzukXPlJmTBwUAuABDe/9qtVDelJeT/qW0ow3ZS3BsQJtNkan1802aM9Uf68/Y8ljw86Hu0h5IUW3w=="
+    },
+    "tslib@2.8.1": {
+      "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
     },
     "use-sync-external-store@1.6.0_react@19.2.4": {
       "integrity": "sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==",
@@ -210,12 +242,14 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@std/assert@^1.0.19",
       "jsr:@std/dotenv@~0.225.6",
       "jsr:@std/fs@1",
       "jsr:@std/path@1",
       "jsr:@std/uuid@1",
       "npm:@semos-labs/glyph@~0.2.10",
       "npm:@types/react@*",
+      "npm:mobx-keystone@^1.20.0",
       "npm:mobx-react-lite@^4.1.1",
       "npm:mobx@^6.15.0",
       "npm:openai@^6.33.0",
