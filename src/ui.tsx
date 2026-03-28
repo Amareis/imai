@@ -35,10 +35,8 @@ export const App = observer(() => {
       <Box style={{ height: rows, width: columns, flexDirection: "column" }}>
         <Box style={{ flexDirection: "row", height: headerHeight }}>
           <Text style={{ color: "cyan", bold: true }}>DEBUG MODE</Text>
-          <Text style={{ dim: true }}> | Ctrl+D to exit</Text>
-          {store.error && (
-            <Text style={{ color: "red" }}> | {store.error.slice(0, 30)}</Text>
-          )}
+          <Text style={{ dim: true }}>| Ctrl+D to exit</Text>
+          {store.error && <Text style={{ color: "red" }}>| {store.error}</Text>}
         </Box>
 
         <ScrollView style={{ height: availableHeight, flexGrow: 1 }}>
@@ -59,7 +57,8 @@ export const App = observer(() => {
           <Input
             style={{ flexGrow: 1 }}
             value={store.input}
-            onChange={(v: string) => store.setInput(v)}
+            onChange={(v: string) =>
+              store.setInput(v)}
             onKeyPress={(key: Key) => {
               if (key.name !== "return") return;
               handleInput(store.input, exit);
@@ -94,9 +93,9 @@ export const App = observer(() => {
         >
           {store.status}
         </Text>
-        <Text style={{ dim: true }}> | Ctrl+D for debug</Text>
+        <Text style={{ dim: true }}>| Ctrl+D for debug</Text>
         {store.error && (
-          <Text style={{ color: "red" }}> | {store.error.slice(0, 30)}</Text>
+          <Text style={{ color: "red" }}>| {store.error.slice(0, 30)}</Text>
         )}
       </Box>
 

@@ -7,7 +7,7 @@ Deno.test("Session - create and basic operations", () => {
   const session = Session.create("test_session");
 
   assertEquals(session.id, "test_session");
-  assertEquals(session.panels.length, 2);
+  assertEquals(session.panels.length, 4);
 
   const mind = session.getPanel(MindPanel, "main");
   const chat = session.getPanel(ChatPanel, "default");

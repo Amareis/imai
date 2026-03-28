@@ -1,6 +1,6 @@
 import { makeAutoObservable } from "mobx";
 import OpenAI from "openai";
-import { type Session, SessionManager } from "./session.ts";
+import { Session, SessionManager } from "./session.ts";
 import { MindPanel } from "./models/mind.ts";
 import { ChatPanel } from "./models/chat.ts";
 
@@ -12,7 +12,6 @@ type DeltaWithReasoning =
 
 export class Store {
   session: Session | undefined;
-  apiRef: string = "";
   input: string = "";
   output: string = "";
   thinking: string = "";
@@ -41,11 +40,11 @@ export class Store {
   }
 
   get mind() {
-    return this.session?.getPanel<MindPanel>(MindPanel, "main");
+    return this.session?.tryGetPanel(MindPanel, "main");
   }
 
   get chat() {
-    return this.session?.getPanel<ChatPanel>(ChatPanel, "default");
+    return this.session?.tryGetPanel(ChatPanel, "default");
   }
 
   get contextLines(): string[] {
@@ -53,46 +52,21 @@ export class Store {
     return this.session.renderForModel().split("\n");
   }
 
-  get thinkingLines() {
-    return this.thinking.split("\n").filter((l) => l.trim());
-  }
-
-  get outputLines() {
-    return this.output.split("\n").filter((l) => l.trim());
-  }
-
-  get logLines() {
-    return this.logs;
-  }
-
   async init() {
     this.setStatus("Loading...");
 
     try {
-      this.apiRef = await this.loadApiReference();
-      this.addLog("API loaded");
-
-      const sessions = await this.manager.list();
-      if (sessions.length > 0) {
-        this.session = await this.manager.load(sessions[0]) ?? undefined;
-        this.addLog(`Session: ${sessions[0].slice(-8)}`);
-      } else {
-        this.session = await this.manager.create();
-        this.addLog("New session");
-      }
+      // const sessions = await this.manager.list();
+      // if (sessions.length > 0) {
+      //   this.session = await this.manager.load(sessions[0]) ?? undefined;
+      //   this.addLog(`Session: ${sessions[0].slice(-8)}`);
+      // } else {
+      this.session = await Session.create();
+      this.addLog("New session");
 
       this.setStatus("Ready");
     } catch (err) {
       this.setError((err as Error).message);
-    }
-  }
-
-  async loadApiReference(): Promise<string> {
-    try {
-      const apiPath = new URL("./api.ts", import.meta.url).pathname;
-      return await Deno.readTextFile(apiPath);
-    } catch {
-      return "// API not found";
     }
   }
 
@@ -206,30 +180,14 @@ export class Store {
     this.clearOutput();
     this.addLog("Calling AI...");
 
-    const contextState = this.session.renderForModel();
-
-    const systemPrompt = `You are an AI agent. Return ONLY TypeScript code.
-
-API:
-${this.apiRef.slice(0, 3000)}
-
-RULES:
-1. Return ONLY TypeScript code - no markdown, no comments
-2. Use mind.setContent(text), mind.append(text)
-3. Use chat.add(from, content), chat.markRead()
-4. Use respond() to output text
-5. Available: mind, chat, respond, log`;
-
-    const userPrompt = `CONTEXT:\n${
-      contextState.slice(0, 5000)
-    }\n\nWhat next? Return code.`;
+    const systemPrompt = this.session.renderForModel();
 
     try {
       const stream = await this.openai.chat.completions.create({
         model: "glm-5",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
+          { role: "user", content: "Do." },
         ],
         temperature: 0.7,
         max_tokens: 10000,

@@ -13,6 +13,10 @@ import { ensureDirSync } from "@std/fs";
 import type { BasePanel } from "./models/panel.ts";
 import { MindPanel } from "./models/mind.ts";
 import { ChatPanel } from "./models/chat.ts";
+import { TextPanel } from "./models/text.ts";
+
+import apiRefText from "./api-ref.d.ts" with { type: "text" };
+import systemPromptText from "./system-prompt.txt" with { type: "text" };
 
 const SESSIONS_DIR = `${Deno.env.get("HOME")}/.imai/sessions`;
 
@@ -68,8 +72,14 @@ export class Session extends Model({
       id: sessionId,
     });
     registerRootStore(session);
+    session.registerPanel(
+      new TextPanel({ slug: "system-prompt", content: systemPromptText }),
+    );
     session.registerPanel(new MindPanel({ slug: "main" }));
     session.registerPanel(new ChatPanel({ slug: "default" }));
+    session.registerPanel(
+      new TextPanel({ slug: "api-ref", content: apiRefText }),
+    );
     return session;
   }
 

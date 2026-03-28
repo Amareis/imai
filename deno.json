@@ -19,6 +19,9 @@
       ]
     }
   },
+  "unstable": [
+    "raw-imports"
+  ],
   "exclude": [
     "docs/"
   ],
