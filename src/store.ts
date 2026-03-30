@@ -20,6 +20,7 @@ export class Store {
   isLoading: boolean = false;
   logs: string[] = [];
   debugMode: boolean = false;
+  logVisible: boolean = false;
 
   private manager: SessionManager;
   private openai: OpenAI | null = null;
@@ -56,11 +57,6 @@ export class Store {
     this.setStatus("Loading...");
 
     try {
-      // const sessions = await this.manager.list();
-      // if (sessions.length > 0) {
-      //   this.session = await this.manager.load(sessions[0]) ?? undefined;
-      //   this.addLog(`Session: ${sessions[0].slice(-8)}`);
-      // } else {
       this.session = await Session.create();
       this.addLog("New session");
 
@@ -110,6 +106,10 @@ export class Store {
 
   toggleDebug() {
     this.debugMode = !this.debugMode;
+  }
+
+  toggleLogs() {
+    this.logVisible = !this.logVisible;
   }
 
   async sendMessage(text: string) {
