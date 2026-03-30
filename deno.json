@@ -32,6 +32,7 @@
     "@std/fs": "jsr:@std/fs@^1.0.0",
     "@std/path": "jsr:@std/path@^1.0.0",
     "@std/uuid": "jsr:@std/uuid@^1.0.0",
+    "lodash": "npm:lodash@^4.17.23",
     "mobx-keystone": "npm:mobx-keystone@^1.20.0",
     "openai": "npm:openai@^6.33.0",
     "react": "npm:react@^19.0.0",

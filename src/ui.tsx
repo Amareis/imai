@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { store } from "./store.ts";
 import {
@@ -11,28 +11,65 @@ import {
   Text,
   useApp,
   useInput,
+  useLayout,
 } from "@semos-labs/glyph";
-import { abort } from "node:process";
+
+type GlyphNode = Exclude<
+  Exclude<Parameters<typeof useLayout>[0], undefined>["current"],
+  null
+>;
 
 const COLUMN_WIDTH = 50;
 
-export const Content = observer(({ rows, columns }: {
-  rows: number;
-  columns: number;
-}) => {
-  if (store.debugMode) {
+export const Content = observer(() => {
+  const { session } = store;
+
+  const boxRef = useRef<GlyphNode>(null);
+  const { innerWidth: columns, innerHeight: rows } = useLayout(boxRef);
+
+  if (!session) {
     return (
-      <Box style={{ flexDirection: "column", height: rows }}>
+      <Box ref={boxRef} style={{ flexDirection: "column", flexGrow: 1 }}>
+        <Text>No session, use /new</Text>
+      </Box>
+    );
+  }
+
+  if (store.logVisible) {
+    return (
+      <Box
+        style={{
+          flexGrow: 1,
+          padding: 1,
+          flexDirection: "column",
+        }}
+      >
+        <Box style={{ flexDirection: "row" }}>
+          <Text style={{ bold: true, color: "yellow" }}>LOGS</Text>
+          <Text style={{ dim: true }}>&nbsp;| Ctrl+L to close</Text>
+        </Box>
         <ScrollView style={{ flexGrow: 1 }}>
-          <Text style={{ color: "whiteBright" }}>
-            {store.contextLines.join("\n")}
+          <Text style={{ color: "whiteBright", dim: true }}>
+            {store.logs.join("\n")}
           </Text>
         </ScrollView>
       </Box>
     );
   }
 
-  const panels = store.session?.panels ?? [];
+  if (store.debugMode) {
+    return (
+      <Box ref={boxRef} style={{ flexDirection: "column", flexGrow: 1 }}>
+        <ScrollView style={{ flexGrow: 1 }}>
+          <Text style={{ color: "whiteBright" }}>
+            {store.text}
+          </Text>
+        </ScrollView>
+      </Box>
+    );
+  }
+
+  const panels = session.panels ?? [];
   const numColumns = Math.max(1, Math.floor(columns / COLUMN_WIDTH));
   const rowsPerColumn = Math.ceil(panels.length / numColumns);
   const panelHeight = Math.floor(rows / Math.max(1, rowsPerColumn));
@@ -46,7 +83,7 @@ export const Content = observer(({ rows, columns }: {
   });
 
   return (
-    <Box style={{ flexDirection: "row", height: rows }}>
+    <Box ref={boxRef} style={{ flexDirection: "row", flexGrow: 1 }}>
       {columnsData.map((colPanels, colIdx) => (
         <Box
           key={colIdx}
@@ -88,104 +125,93 @@ export const App = observer(() => {
     store.init();
   }, []);
 
-  useInput((key: Key) => {
-    if (key.ctrl && key.name === "d") {
-      store.toggleDebug();
-    }
-  });
-
-  const inputHeight = 5;
-  const availableHeight = rows - inputHeight;
-
   return (
     <Box style={{ height: rows, width: columns, flexDirection: "column" }}>
       <Keybind keypress="ctrl+l" onPress={() => store.toggleLogs()} priority />
+      <Keybind keypress="ctrl+d" onPress={() => store.toggleDebug()} priority />
 
-      <Content columns={columns} rows={availableHeight} />
+      <Content />
 
       <Box
         style={{
-          height: inputHeight,
-          border: "single",
-          borderColor: "yellow",
+          flexDirection: "row",
+          bg: 236,
+          borderColor: "cyan",
         }}
       >
-        <Box style={{ flexDirection: "row" }}>
-          <Text style={{ bold: true, color: "yellow" }}>{" > "}</Text>
-          <Input
-            style={{ flexGrow: 1 }}
-            value={store.input}
-            onChange={(v: string) => store.setInput(v)}
-            onKeyPress={(key: Key) => {
-              if (key.name !== "return") return;
-              handleInput(store.input, exit);
-            }}
-            placeholder="send <msg> | ai | clear | save | quit"
-          />
-        </Box>
+        <Text style={{ bold: true, color: "yellow", width: 2 }}>
+          │ │ │ │ │
+        </Text>
+        <Box style={{ flexGrow: 1, paddingY: 1 }}>
+          <Box style={{ flexDirection: "row" }}>
+            <Input
+              style={{ flexGrow: 1 }}
+              value={store.input}
+              onChange={(v: string) => store.setInput(v)}
+              onKeyPress={(key: Key) => {
+                if (key.name !== "return") return;
+                handleInput(store.input, exit);
+              }}
+              placeholder="/ <msg> to send | /ai | /q[uit] | /new /save /rm (session)"
+              autoFocus
+            />
+          </Box>
 
-        <Box style={{ paddingTop: 1, flexDirection: "row" }}>
-          <Text
-            style={{
-              color: store.error ? "red" : store.isLoading ? "yellow" : "green",
-            }}
-          >
-            {"   "}
-            {store.status}
-          </Text>
-          <Text style={{ dim: true }}>
-            {" | "}Ctrl+D debug | Ctrl+L logs
-          </Text>
-          {store.error && (
-            <Text style={{ color: "red" }}>
-              {" | "}
-              {store.error.slice(0, 30)}
+          <Box style={{ paddingTop: 1, flexDirection: "row" }}>
+            <Text
+              style={{
+                color: store.error
+                  ? "red"
+                  : store.isLoading
+                  ? "yellow"
+                  : "green",
+              }}
+            >
+              {store.status}
             </Text>
-          )}
+            <Text style={{ dim: true }}>
+              {" | "}Ctrl+D debug | Ctrl+L logs
+            </Text>
+            {store.error && (
+              <Text style={{ color: "red" }}>
+                {" | "}
+                {store.error.slice(0, 30)}
+              </Text>
+            )}
+          </Box>
         </Box>
       </Box>
-
-      {store.logVisible && (
-        <Portal>
-          <Box
-            style={{
-              padding: 1,
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: columns,
-              height: rows,
-              bg: "black",
-              flexDirection: "column",
-            }}
-          >
-            <Box style={{ flexDirection: "row" }}>
-              <Text style={{ bold: true, color: "yellow" }}>LOGS</Text>
-              <Text style={{ dim: true }}>| Ctrl+L to close</Text>
-            </Box>
-            <ScrollView style={{ flexGrow: 1 }}>
-              <Text style={{ color: "whiteBright", dim: true }}>
-                {store.logs.join("\n")}
-              </Text>
-            </ScrollView>
-          </Box>
-        </Portal>
-      )}
     </Box>
   );
 });
 
-function handleInput(v: string, exit: () => void) {
-  if (v === "ai") {
-    store.callAI();
-  } else if (v.startsWith("send ")) {
-    store.sendMessage(v.slice(5));
-  } else if (v === "clear") {
-    store.clearOutput();
-  } else if (v === "save") {
-    store.save();
-  } else if (v === "quit" || v === "q") {
-    store.save();
+async function handleInput(v: string, exit: () => void) {
+  v = v.trim();
+  if (!v.startsWith("/")) {
+    await store.sendMessage(v);
+  }
+  if (v === "/ai") {
+    await store.callAI();
+  }
+  if (v === "/quit" || v === "/q") {
+    await store.save();
     exit();
-  } else store.executeCode(v);
+  }
+  if (v === "/new") {
+    await store.createSession();
+  }
+  if (v === "/rm") {
+    await store.removeSession();
+  }
+  if (v === "/save") {
+    await store.save();
+  }
+  if (v === "/read") {
+    store.readConsts();
+  }
+  if (v.startsWith("/code ")) {
+    const code = v.slice(6);
+    await store.executeCode(code);
+  }
+  store.setInput("");
 }

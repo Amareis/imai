@@ -20,13 +20,13 @@ export class MindPanel extends ExtendedModel(BasePanel, {
     this.content = "";
   }
 
-  override renderForModel(): string {
-    const type = this.$modelType.replace("imai/", "");
-    if (this.state === "minimized") {
-      return `[${type}:${this.slug}]`;
+  override get text(): string {
+    const content = this.content.trim();
+    if (this.isMinimized) {
+      const lines = this.content.split("\n").length;
+      return `${lines} lines, probably you need to expand it!`;
     }
-    const body = this.content.trim() || "(empty)";
-    return `=== ${type}:${this.slug} ===\n${body}`;
+    return content || "(empty)";
   }
 
   override getAPI(): Record<string, unknown> {

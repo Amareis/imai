@@ -15,8 +15,8 @@ import { MindPanel } from "./models/mind.ts";
 import { ChatPanel } from "./models/chat.ts";
 import { TextPanel } from "./models/text.ts";
 
-import apiRefText from "./api-ref.d.ts" with { type: "text" };
-import systemPromptText from "./system-prompt.txt" with { type: "text" };
+import apiRefText from "./res/api-ref.d.ts" with { type: "text" };
+import systemPromptText from "./res/system-prompt.txt" with { type: "text" };
 
 const SESSIONS_DIR = `${Deno.env.get("HOME")}/.imai/sessions`;
 
@@ -52,14 +52,23 @@ export class Session extends Model({
 
   @modelAction
   registerPanel(panel: BasePanel) {
-    if (!this.panels.find((p) => p.slug === panel.slug)) {
-      this.panels.push(panel);
+    const existing = this.panels.find((p) => p.slug === panel.slug);
+    if (existing) {
+      throw new Error(
+        `Panel with slug ${panel.slug} already registered with type '${existing.$modelType}'`,
+      );
     }
+    this.panels.push(panel);
   }
 
   @modelAction
   unregisterPanel(slug: string) {
     this.panels = this.panels.filter((p) => p.slug !== slug);
+  }
+
+  setConsts() {
+    this.getPanel(TextPanel, "system-prompt")?.setContent(systemPromptText);
+    this.getPanel(TextPanel, "api-ref")?.setContent(apiRefText);
   }
 
   renderForModel(): string {
@@ -73,13 +82,12 @@ export class Session extends Model({
     });
     registerRootStore(session);
     session.registerPanel(
-      new TextPanel({ slug: "system-prompt", content: systemPromptText }),
+      new TextPanel({ slug: "system-prompt", system: true }),
     );
     session.registerPanel(new MindPanel({ slug: "main" }));
     session.registerPanel(new ChatPanel({ slug: "default" }));
-    session.registerPanel(
-      new TextPanel({ slug: "api-ref", content: apiRefText }),
-    );
+    session.registerPanel(new TextPanel({ slug: "api-ref" }));
+    session.setConsts();
     return session;
   }
 
@@ -100,7 +108,7 @@ export class SessionManager {
   private sessionPath: string | null = null;
 
   async create(): Promise<Session> {
-    const id = `session_${Date.now()}`;
+    const id = `session_${new Date().toISOString()}`;
     this.session = Session.create(id);
     this.sessionPath = `${SESSIONS_DIR}/${id}/session.json`;
     ensureDirSync(`${SESSIONS_DIR}/${id}`);
@@ -140,7 +148,7 @@ export class SessionManager {
           entries.push(entry.name);
         }
       }
-      return entries.sort().reverse();
+      return entries.sort((a, b) => a < b ? -1 : 1).reverse();
     } catch {
       return [];
     }
@@ -149,5 +157,9 @@ export class SessionManager {
   watch(callback: (patches: unknown) => void): () => void {
     if (!this.session) return () => {};
     return onPatches(this.session, callback);
+  }
+
+  async removeSession(sessionId: string) {
+    await Deno.remove(`${SESSIONS_DIR}/${sessionId}`, { recursive: true });
   }
 }

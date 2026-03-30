@@ -8,13 +8,14 @@ import {
 } from "mobx-keystone";
 import type { Session } from "../session.ts";
 
-export type PanelState = "minimized" | "preview" | "expanded";
+export type PanelState = "minimized" | "expanded";
 
 @model("imai/BasePanel")
 export class BasePanel extends Model({
   id: idProp,
   slug: prop<string>(),
-  state: prop<PanelState>("preview"),
+  state: prop<PanelState>("expanded"),
+  system: prop<boolean>(() => false),
 }) {
   @modelAction
   setState(s: PanelState) {
@@ -34,12 +35,25 @@ export class BasePanel extends Model({
     return () => {};
   }
 
+  get isExpanded() {
+    return this.state === "expanded";
+  }
+
+  get isMinimized() {
+    return this.state === "minimized";
+  }
+
+  get text(): string {
+    return "";
+  }
+
   renderForModel(): string {
     const type = this.$modelType.replace("imai/", "");
+    const text = this.text;
     if (this.state === "minimized") {
-      return `[${type}:${this.slug}]`;
+      return `[${type}:${this.slug} - MINIMIZED]${text ? ": " + text : ""}`;
     }
-    return `=== ${type}:${this.slug} ===`;
+    return `=== ${type}:${this.slug} ===${text ? "\n" + text : ""}`;
   }
 
   getAPI(): Record<string, unknown> {

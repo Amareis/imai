@@ -20,7 +20,10 @@
     "jsr:@std/streams@^1.0.17": "1.0.17",
     "jsr:@std/uuid@1": "1.1.0",
     "npm:@semos-labs/glyph@~0.2.10": "0.2.10_react@19.2.4",
+    "npm:@types/lodash@*": "4.17.24",
     "npm:@types/react@*": "19.2.14",
+    "npm:@types/react@19.2.14": "19.2.14",
+    "npm:lodash@^4.17.23": "4.17.23",
     "npm:mobx-keystone@1.20.0": "1.20.0_mobx@6.15.0",
     "npm:mobx-keystone@^1.20.0": "1.20.0_mobx@6.15.0",
     "npm:mobx-react-lite@^4.1.1": "4.1.1_mobx@6.15.0_react@19.2.4",
@@ -115,6 +118,9 @@
         "yoga-layout"
       ]
     },
+    "@types/lodash@4.17.24": {
+      "integrity": "sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ=="
+    },
     "@types/react@19.2.14": {
       "integrity": "sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==",
       "dependencies": [
@@ -135,6 +141,9 @@
     },
     "get-east-asian-width@1.5.0": {
       "integrity": "sha512-CQ+bEO+Tva/qlmw24dCejulK5pMzVnUOFOijVogd3KQs07HnRIgp8TGipvCCRT06xeYEbpbgwaCxglFyiuIcmA=="
+    },
+    "lodash@4.17.23": {
+      "integrity": "sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w=="
     },
     "mobx-keystone@1.20.0_mobx@6.15.0": {
       "integrity": "sha512-nS/saMrkqTNBPB7j3KkDCYv7q98n6+jPVnKQKKINBBXQUUvBsl/j+kGIpuVdOiJ5cl4kFmOb9U8ydzdqaPdh5A==",
@@ -293,6 +302,7 @@
       "jsr:@std/uuid@1",
       "npm:@semos-labs/glyph@~0.2.10",
       "npm:@types/react@*",
+      "npm:lodash@^4.17.23",
       "npm:mobx-keystone@^1.20.0",
       "npm:mobx-react-lite@^4.1.1",
       "npm:mobx@^6.15.0",

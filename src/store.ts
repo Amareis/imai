@@ -1,8 +1,9 @@
 import { makeAutoObservable } from "mobx";
 import OpenAI from "openai";
-import { Session, SessionManager } from "./session.ts";
+import { type Session, SessionManager } from "./session.ts";
 import { MindPanel } from "./models/mind.ts";
 import { ChatPanel } from "./models/chat.ts";
+import _ from "lodash";
 
 type DeltaWithReasoning =
   & OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta
@@ -11,10 +12,8 @@ type DeltaWithReasoning =
   };
 
 export class Store {
-  session: Session | undefined;
+  session: Session | null = null;
   input: string = "";
-  output: string = "";
-  thinking: string = "";
   error: string = "";
   status: string = "Ready";
   isLoading: boolean = false;
@@ -48,22 +47,46 @@ export class Store {
     return this.session?.tryGetPanel(ChatPanel, "default");
   }
 
-  get contextLines(): string[] {
-    if (!this.session) return ["No session"];
-    return this.session.renderForModel().split("\n");
+  get text(): string {
+    if (!this.session) return "No session";
+    return this.session.renderForModel();
   }
 
   async init() {
     this.setStatus("Loading...");
 
     try {
-      this.session = await Session.create();
-      this.addLog("New session");
+      const list = await this.manager.list();
+
+      if (list.length > 0) {
+        this.session = await this.manager.load(list[0]);
+      }
+
+      if (!this.session) {
+        await this.createSession();
+      }
 
       this.setStatus("Ready");
     } catch (err) {
       this.setError((err as Error).message);
     }
+  }
+
+  async createSession() {
+    this.session = await this.manager.create();
+
+    await this.sendMessage(`Приветствую!
+Ты сейчас управляешь специальным агентским фреймворком на котором я проверяю свою идею.
+Ключевое отличие от стандартного флоу чатбота - ты не видишь свои предыдушие сообщения!
+Ты увидишь только то что ты явно сохранишь в доступные тебе панели chat/mind.
+Но при этом ты можешь (и должен) явно управлять состоянием своего контекста - открывать/закрывать панели, 
+менеджить их так, чтобы при следующем запросе увидеть корректное состояние задачи и понимать свои следующие шаги.
+Теоретически это должно дать тебе возможность работать со сколь угодно большим контекстом неограниченное время,
+Похоже на то как люди работают за компьютером - открывают кучу окон с кучей вкладок 
+и переключаются между ними по необходимости (уведомлениям), при этом храня в голове текущую задач и шаги выполнения.
+`);
+
+    this.addLog("New session");
   }
 
   setInput(value: string) {
@@ -91,21 +114,12 @@ export class Store {
     }
   }
 
-  appendOutput(text: string) {
-    this.output += text;
-  }
-
-  setThinking(text: string) {
-    this.thinking = text;
-  }
-
-  clearOutput() {
-    this.output = "";
-    this.thinking = "";
-  }
-
   toggleDebug() {
-    this.debugMode = !this.debugMode;
+    if (this.logVisible) {
+      this.logVisible = false;
+    } else {
+      this.debugMode = !this.debugMode;
+    }
   }
 
   toggleLogs() {
@@ -118,7 +132,6 @@ export class Store {
     this.chat.add("user", text.trim());
     this.addLog(`USER: ${text.trim().slice(0, 30)}...`);
     await this.manager.save();
-    this.input = "";
   }
 
   async executeCode(code: string) {
@@ -132,35 +145,24 @@ export class Store {
       const mind = this.mind;
       const chat = this.chat;
 
-      const fn = new Function(
+      const AsyncFunction =
+        Object.getPrototypeOf(async function () {}).constructor;
+      const fn = new AsyncFunction(
         "mind",
         "chat",
-        "respond",
-        "log",
         code,
       );
 
-      fn(
+      await fn(
         mind,
         chat,
-        (text: string) => {
-          this.appendOutput(`\n[RESPONSE] ${text}\n`);
-          this.addLog(`RESP: ${text.slice(0, 30)}...`);
-        },
-        (action: string, details?: Record<string, unknown>) => {
-          this.addLog(
-            `LOG: ${action} ${details ? JSON.stringify(details) : ""}`,
-          );
-        },
       );
 
       await this.manager.save();
       this.addLog("OK");
       this.setStatus("Ready");
-      this.input = "";
     } catch (err) {
       this.setError((err as Error).message);
-      this.appendOutput(`\n[ERROR] ${(err as Error).message}\n`);
     }
   }
 
@@ -177,18 +179,28 @@ export class Store {
 
     this.isLoading = true;
     this.setStatus("AI...");
-    this.clearOutput();
     this.addLog("Calling AI...");
 
-    const systemPrompt = this.session.renderForModel();
+    const [system, user] = _.partition(this.session.panels, (p) => p.system);
 
     try {
       const stream = await this.openai.chat.completions.create({
         model: "glm-5",
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: "Do." },
+          ...system.map((p) => ({
+            role: "system",
+            content: p.renderForModel(),
+          } as const)),
+          {
+            role: "user",
+            content: "[FAKE MESSAGE TO FULFILL API REQUIREMENtS]",
+          },
+          ...user.map((p) => ({
+            role: "assistant",
+            content: p.renderForModel(),
+          } as const)),
         ],
+
         temperature: 0.7,
         max_tokens: 10000,
         stream: true,
@@ -204,25 +216,30 @@ export class Store {
 
         if (delta.reasoning_content) {
           thinking += delta.reasoning_content;
-          this.setThinking(thinking);
-        } else {
+        }
+
+        if (delta.content) {
+          if (thinking) {
+            this.addLog("[think] " + thinking);
+            thinking = "";
+          }
           const content = delta?.content || "";
           code += content;
-          this.appendOutput(content);
         }
       }
 
       this.addLog("Stream done");
+      this.addLog("[code] " + code);
       this.setStatus("Ready");
 
       const cleanCode = this.extractCode(code);
       if (cleanCode) {
-        this.appendOutput("\n\n--- Executing ---\n");
+        this.addLog("\n\n--- Executing ---\n");
         await this.executeCode(cleanCode);
       }
     } catch (err) {
       this.setError((err as Error).message);
-      this.appendOutput(`\n[ERROR] ${(err as Error).message}\n`);
+      this.addLog(`\n[ERROR] ${(err as Error).message}\n`);
     } finally {
       this.isLoading = false;
     }
@@ -243,6 +260,17 @@ export class Store {
   async save() {
     await this.manager.save();
     this.addLog("Saved");
+  }
+
+  async removeSession() {
+    if (!this.session) return;
+    const { session } = this;
+    this.session = null;
+    await this.manager.removeSession(session.id);
+  }
+
+  readConsts() {
+    this.session?.setConsts();
   }
 }
 

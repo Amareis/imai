@@ -10,12 +10,11 @@ export class TextPanel extends ExtendedModel(BasePanel, {
     this.content = text;
   }
 
-  override renderForModel(): string {
-    const type = this.$modelType.replace("imai/", "");
+  override get text(): string {
     if (this.state === "minimized") {
       const lines = this.content.split("\n").length;
-      return `[${type}:${this.slug} - ${lines} lines]`;
+      return `${lines} lines]`;
     }
-    return `=== ${type}:${this.slug} ===\n${this.content || "(empty)"}`;
+    return this.content || "(empty)";
   }
 }

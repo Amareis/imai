@@ -6,13 +6,24 @@
 
 declare const mind: MindPanel;
 declare const chat: ChatPanel;
-declare const respond: (text: string) => void;
-declare const log: (action: string, details?: Record<string, unknown>) => void;
+
+type PanelState = "minimized" | "expanded";
+
+interface BasePanel {
+  readonly id: string;
+  readonly slug: string;
+  readonly state: PanelState;
+
+  setState(s: PanelState): void;
+
+  /** toggle state */
+  toggle(): void;
+}
 
 // === MindPanel ===
 
-interface MindPanel {
-  content: string;
+interface MindPanel extends BasePanel {
+  readonly content: string;
   setContent(text: string): void;
   append(text: string): void;
   clear(): void;
@@ -20,17 +31,17 @@ interface MindPanel {
 
 // === ChatPanel ===
 
-interface ChatPanel {
-  messages: Message[];
-  hasNew: boolean;
+interface ChatPanel extends BasePanel {
+  readonly messages: Message[];
+  readonly hasNew: boolean;
   add(from: string, content: string): void;
   markRead(): void;
   clear(): void;
 }
 
 interface Message {
-  id: string;
-  from: string;
-  content: string;
-  createdAt: string;
+  readonly id: string;
+  readonly from: string;
+  readonly content: string;
+  readonly createdAt: string;
 }
