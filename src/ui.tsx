@@ -211,7 +211,7 @@ async function handleInput(v: string, exit: () => void) {
   }
   if (v.startsWith("/code ")) {
     const code = v.slice(6);
-    await store.executeCode(code);
+    if (await store.executeCode(code)) return;
   }
   store.setInput("");
 }

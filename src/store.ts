@@ -161,12 +161,13 @@ export class Store {
       await this.manager.save();
       this.addLog("OK");
       this.setStatus("Ready");
-    } catch (err) {
+    } catch (err: unknown) {
       this.setError((err as Error).message);
+      return err;
     }
   }
 
-  async callAI() {
+  async callAI(lastCallError: string[] = []) {
     if (!this.openai) {
       this.setError("OpenAI not configured");
       return;
@@ -193,11 +194,15 @@ export class Store {
           } as const)),
           {
             role: "user",
-            content: "[FAKE MESSAGE TO FULFILL API REQUIREMENtS]",
+            content: "[FAKE MESSAGE TO FULFILL API REQUIREMENTS]",
           },
           ...user.map((p) => ({
             role: "assistant",
             content: p.renderForModel(),
+          } as const)),
+          ...lastCallError.map((e) => ({
+            role: "assistant",
+            content: e,
           } as const)),
         ],
 
@@ -235,7 +240,13 @@ export class Store {
       const cleanCode = this.extractCode(code);
       if (cleanCode) {
         this.addLog("\n\n--- Executing ---\n");
-        await this.executeCode(cleanCode);
+        const exErr = await this.executeCode(cleanCode);
+        if (exErr) {
+          await this.callAI([
+            ...lastCallError,
+            `${cleanCode}\n\nError: ${exErr}`,
+          ]);
+        }
       }
     } catch (err) {
       this.setError((err as Error).message);
