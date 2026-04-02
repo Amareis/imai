@@ -163,6 +163,7 @@ export class Store {
       this.setStatus("Ready");
     } catch (err: unknown) {
       this.setError((err as Error).message);
+      this.setStatus("Err");
       return err;
     }
   }
